@@ -1,0 +1,9 @@
+{
+    "editor.scrollbar.vertical": "visible",
+    "editor.scrollbar.horizontal": "visible",
+    "editor.fontSize": 14,
+    "editor.fontWeight": "normal",
+    "editor.fontFamily": "Consolas",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+}
