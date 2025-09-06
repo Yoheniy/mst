@@ -71,5 +71,5 @@ class UserUpdate(SQLModel):
 
 # UserReadWithDetails will be defined after all models are defined
 class UserReadWithDetails(UserRead):
-    machines: List["Machine"] = []
-    tickets_created: List["Ticket"] = []
+    machines: List["Machine"] = Field(default_factory=list)
+    tickets_created: List["Ticket"] = Field(default_factory=list)

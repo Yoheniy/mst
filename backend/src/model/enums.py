@@ -57,3 +57,12 @@ class MessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
+    
+    @classmethod
+    def _missing_(cls, value):
+        # Handle case-insensitive matching
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.upper() == value.upper():
+                    return member
+        return None

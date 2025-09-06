@@ -2,6 +2,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, JSON
 from sqlmodel import Field, SQLModel, Relationship
+from pydantic import validator
 from .enums import MessageRole
 
 # --- Chat Models ---
@@ -57,6 +58,13 @@ class MessageResponse(SQLModel):
     content: str
     timestamp: datetime
     message_metadata: Optional[Dict[str, Any]] = None  # ← Renamed to match ChatMessage
+    
+    @validator('role', pre=True)
+    def normalize_role(cls, v):
+        if isinstance(v, str):
+            # Convert uppercase to lowercase to match enum values
+            v = v.lower()
+        return v
 
 class ChatSessionCreate(SQLModel):
     machine_id: Optional[int] = None
