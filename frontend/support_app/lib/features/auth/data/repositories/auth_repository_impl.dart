@@ -24,19 +24,29 @@ class AuthRepositoryImpl implements AuthRepository {
       print('🔍 Auth - Login response keys: ${response.keys.toList()}');
 
       if (response.containsKey('access_token')) {
-  final token = response['access_token'] as String;
-  print('🔍 Auth - About to store token: ${token.substring(0, 20)}...');
-  await localStorage.setString('token', token);
-  
-  // Verify token was stored
-  final storedToken = localStorage.getString('token');
-  print('🔍 Auth - Stored token verification: ${storedToken?.substring(0, 20) ?? 'NULL'}...');
-  
-  return Right(userModel);
-} else {
-  print('❌ No access_token found in login response');
-  throw Exception('No access token received from server');
-}
+        final token = response['access_token'] as String;
+        final refreshToken = response['refresh_token'] as String?;
+
+        print('🔍 Auth - About to store token: ${token.substring(0, 20)}...');
+        await localStorage.setString('access_token', token);
+        if (refreshToken != null) {
+          await localStorage.setString('refresh_token', refreshToken);
+        }
+
+        // Store token timestamp for expiration checking
+        await localStorage.setInt(
+            'token_timestamp', DateTime.now().millisecondsSinceEpoch);
+
+        // Verify token was stored
+        final storedToken = localStorage.getString('access_token');
+        print(
+            '🔍 Auth - Stored token verification: ${storedToken?.substring(0, 20) ?? 'NULL'}...');
+
+        return Right(userModel);
+      } else {
+        print('❌ No access_token found in login response');
+        throw Exception('No access token received from server');
+      }
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
@@ -60,15 +70,23 @@ class AuthRepositoryImpl implements AuthRepository {
             await remoteDataSource.getLoginResponseData(email, password);
         if (response.containsKey('access_token')) {
           final token = response['access_token'] as String;
-          await localStorage.setString('token', token);
+          final refreshToken = response['refresh_token'] as String?;
+
+          await localStorage.setString('access_token', token);
+          if (refreshToken != null) {
+            await localStorage.setString('refresh_token', refreshToken);
+          }
+          // Store token timestamp for expiration checking
+          await localStorage.setInt(
+              'token_timestamp', DateTime.now().millisecondsSinceEpoch);
           print(
               '✅ JWT token stored after registration: ${token.substring(0, 20)}...');
         } else {
-          await localStorage.setString('token', 'dummy_token');
+          await localStorage.setString('access_token', 'dummy_token');
         }
       } catch (e) {
         print('⚠️ Could not get token after registration: $e');
-        await localStorage.setString('token', 'dummy_token');
+        await localStorage.setString('access_token', 'dummy_token');
       }
 
       return Right(userModel);

@@ -12,4 +12,5 @@ abstract class ChatRepository {
     String? chunkTypeFilter,
   });
   Future<void> deleteSession(int sessionId);
+  void clearCache();
 }

@@ -10,16 +10,15 @@ class ChatRepositoryImpl implements ChatRepository {
   // Cache for messages to improve performance
   final Map<int, List<ChatMessage>> _messageCache = {};
   final Map<int, DateTime> _cacheTimestamps = {};
-  static const Duration _cacheValidity = Duration(minutes: 5);
 
   ChatRepositoryImpl(this._dio, this._sharedPreferences);
 
   /// Validate that we have a valid token
   String _validateToken() {
     print('🔍 Chat - _validateToken called');
-    final token = _sharedPreferences.getString('token');
+    final token = _sharedPreferences.getString('access_token');
     print(
-        '🔍 Chat - Raw token from SharedPreferences: ${token?.substring(0, (token?.length ?? 0) > 20 ? 20 : (token?.length ?? 0)) ?? 'NULL'}...');
+        '🔍 Chat - Raw token from SharedPreferences: ${token?.substring(0, (token.length > 20 ? 20 : token.length)) ?? 'NULL'}...');
     print('🔍 Chat - Token is null: ${token == null}');
     print('🔍 Chat - Token is empty: ${token?.isEmpty ?? true}');
     print('🔍 Chat - Token is dummy: ${token == 'dummy_token'}');
@@ -32,20 +31,58 @@ class ChatRepositoryImpl implements ChatRepository {
     return token;
   }
 
+  /// Handle token expiration and provide better error messages
+  Future<String> _getValidToken() async {
+    try {
+      final token = _validateToken();
+
+      // Check if token might be expired by looking at the timestamp
+      final tokenTimestamp = _sharedPreferences.getInt('token_timestamp');
+      if (tokenTimestamp != null) {
+        final tokenAge = DateTime.now().millisecondsSinceEpoch - tokenTimestamp;
+        final tokenAgeMinutes = tokenAge / (1000 * 60);
+
+        print('🔍 Token age: ${tokenAgeMinutes.toStringAsFixed(1)} minutes');
+
+        // If token is older than 25 minutes (5 minutes before 30-minute expiry),
+        // it's likely expired
+        if (tokenAgeMinutes > 25) {
+          print('⚠️ Token is likely expired (older than 25 minutes)');
+          await _clearExpiredTokens();
+          throw Exception('Session expired. Please login again.');
+        }
+      }
+
+      return token;
+    } catch (e) {
+      print('❌ Token validation error: $e');
+      throw Exception('Authentication failed. Please login again.');
+    }
+  }
+
+  /// Clear expired tokens
+  Future<void> _clearExpiredTokens() async {
+    await _sharedPreferences.remove('access_token');
+    await _sharedPreferences.remove('token_timestamp');
+    print('🧹 Cleared expired tokens');
+  }
+
   @override
   Future<List<ChatSession>> getUserSessions() async {
     try {
       // Wait a bit to ensure token is stored after login
       await Future.delayed(const Duration(milliseconds: 100));
 
-      final token = _validateToken();
+      final token = await _getValidToken();
       print(
           '🔍 Chat API - Retrieved token: ${token.substring(0, token.length > 20 ? 20 : token.length)}...');
       print('🔍 Chat API - Token length: ${token.length}');
 
       final response = await _dio.get(
         '/chat/sessions/',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
       );
 
       final List<dynamic> sessionsJson = response.data;
@@ -59,7 +96,7 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<ChatSession> createChatSession(String title, {int? machineId}) async {
     try {
-      final token = _sharedPreferences.getString('token');
+      final token = await _getValidToken();
       final response = await _dio.post(
         '/chat/sessions/',
         data: {
@@ -78,7 +115,7 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<List<ChatMessage>> getSessionMessages(int sessionId) async {
     try {
-      final token = _sharedPreferences.getString('token');
+      final token = await _getValidToken();
       final response = await _dio.get(
         '/chat/sessions/$sessionId/messages/',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
@@ -100,7 +137,7 @@ class ChatRepositoryImpl implements ChatRepository {
     String? chunkTypeFilter,
   }) async {
     try {
-      final token = _sharedPreferences.getString('token');
+      final token = await _getValidToken();
       final response = await _dio.post(
         '/chat/ai/chat',
         data: {
@@ -122,7 +159,7 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<void> deleteSession(int sessionId) async {
     try {
-      final token = _sharedPreferences.getString('token');
+      final token = await _getValidToken();
       await _dio.delete(
         '/chat/sessions/$sessionId/',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
@@ -171,69 +208,33 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   // Cache management methods
-  bool _isCacheValid(int sessionId) {
-    if (!_messageCache.containsKey(sessionId)) return false;
-
-    final timestamp = _cacheTimestamps[sessionId];
-    if (timestamp == null) return false;
-
-    return DateTime.now().difference(timestamp) < _cacheValidity;
-  }
-
-  void _updateCache(int sessionId, List<ChatMessage> messages) {
-    _messageCache[sessionId] = messages;
-    _cacheTimestamps[sessionId] = DateTime.now();
-    print(
-        'Cache updated for session $sessionId with ${messages.length} messages');
-  }
-
-  void _addMessageToCache(
-      int sessionId, String userMessage, AIChatResponse aiResponse) {
-    if (!_messageCache.containsKey(sessionId)) {
-      _messageCache[sessionId] = [];
-    }
-
-    // Add user message
-    final userMsg = ChatMessage(
-      messageId: DateTime.now().millisecondsSinceEpoch,
-      sessionId: sessionId,
-      role: 'user',
-      content: userMessage,
-      timestamp: DateTime.now(),
-    );
-
-    // Add AI response
-    final aiMsg = ChatMessage(
-      messageId: aiResponse.messageId,
-      sessionId: sessionId,
-      role: 'assistant',
-      content: aiResponse.response,
-      timestamp: DateTime.now(),
-      metadata: {
-        'ai_response': true,
-        'confidence': aiResponse.confidence,
-        'model': aiResponse.model,
-        'usage': aiResponse.usage,
-      },
-    );
-
-    _messageCache[sessionId]!.addAll([userMsg, aiMsg]);
-    _cacheTimestamps[sessionId] = DateTime.now();
-
-    print('Cache updated for session $sessionId with new messages');
-  }
-
-  void _removeFromCache(int sessionId) {
-    _messageCache.remove(sessionId);
-    _cacheTimestamps.remove(sessionId);
-    print('Cache cleared for session $sessionId');
-  }
 
   // Public method to clear all cache (useful for logout)
+  @override
   void clearCache() {
     _messageCache.clear();
     _cacheTimestamps.clear();
     print('All chat cache cleared');
+  }
+
+  // Clear all authentication data and cache
+  Future<void> clearAllData() async {
+    try {
+      // Clear cache
+      clearCache();
+
+      // Clear all stored tokens and user data
+      await _sharedPreferences.remove('access_token');
+      await _sharedPreferences.remove('refresh_token');
+      await _sharedPreferences.remove('token');
+      await _sharedPreferences.remove('token_timestamp');
+      await _sharedPreferences.remove('user_email');
+      await _sharedPreferences.remove('user_name');
+
+      print('All authentication data cleared');
+    } catch (e) {
+      print('Error clearing data: $e');
+    }
   }
 
   // Public method to get cache statistics

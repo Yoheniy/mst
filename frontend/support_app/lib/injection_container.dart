@@ -51,10 +51,12 @@ Future<void> init() async {
   // Register the Dio instance from BasicNetworkService
   sl.registerSingleton<Dio>(dio);
 
-  // Chat dependencies
+  // Chat dependencies (needed by LogoutService)
   sl.registerLazySingleton<ChatRepository>(
     () => ChatRepositoryImpl(dio, sl<SharedPreferences>()),
   );
+
+  // Core services are registered by injectable generator
 
   sl.registerFactory<ChatBloc>(
     () => ChatBloc(sl<ChatRepository>()),

@@ -21,9 +21,11 @@ void main() async {
 
   // Validate token on app start
   final sharedPreferences = await SharedPreferences.getInstance();
-  final token = sharedPreferences.getString('token');
+  final token = sharedPreferences.getString('access_token') ??
+      sharedPreferences.getString('token');
   if (token == 'dummy_token') {
-    // Clear invalid token
+    // Clear invalid tokens
+    await sharedPreferences.remove('access_token');
     await sharedPreferences.remove('token');
     print('⚠️ Cleared invalid dummy token on app start');
   }
