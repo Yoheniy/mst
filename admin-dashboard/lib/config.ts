@@ -1,8 +1,11 @@
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: ' http://localhost:8000',
-  TIMEOUT: parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000'),
+  BASE_URL: 'http://localhost:8000',
+  TIMEOUT: parseInt('30000'),
   ENDPOINTS: {
+    DASHBOARD: {
+      STATISTICS: '/statistics'
+    },
     AUTH: {
       LOGIN: '/login',
       LOGOUT: '/logout',

@@ -27,6 +27,26 @@ export default function KnowledgeDetailPage() {
   const [editedTitle, setEditedTitle] = useState<string>("")
   const [editedContent, setEditedContent] = useState<string>("")
 
+  const openExternalResource = async (url: string) => {
+    try {
+      const opened = window.open(url, '_blank', 'noopener,noreferrer')
+      if (opened) return
+    } catch {}
+    try {
+      const resp = await fetch(url)
+      if (!resp.ok) throw new Error('Failed to fetch resource')
+      const blob = await resp.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const openedBlob = window.open(objectUrl, '_blank', 'noopener,noreferrer')
+      if (!openedBlob) {
+        window.location.href = url
+      }
+      // We intentionally do not revokeObjectURL immediately to avoid closing the blob in some browsers
+    } catch {
+      window.location.href = url
+    }
+  }
+
   useEffect(() => {
     if (!id) return
     let cancelled = false
@@ -258,6 +278,7 @@ export default function KnowledgeDetailPage() {
                 const contentType = (item.content_type || "").toLowerCase()
                 const isVideo = contentType === "video"
                 const isImage = contentType === "image"
+                const isPdf = contentType === "pdf" || (item.external_url || '').toLowerCase().endsWith('.pdf')
 
                 if (isVideo) {
                   return item.external_url ? (
@@ -296,12 +317,12 @@ export default function KnowledgeDetailPage() {
                   )
                 }
 
+               
+
                 return item.external_url ? (
                   <div>
-                    <Button asChild variant="secondary">
-                      <a href={item.external_url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 mr-2" /> Open external resource
-                      </a>
+                    <Button variant="secondary" onClick={() => openExternalResource(item.external_url!)}>
+                      <ExternalLink className="h-4 w-4 mr-2" /> Open external resource
                     </Button>
                   </div>
                 ) : null

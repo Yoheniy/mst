@@ -224,19 +224,6 @@ async def refresh_access_token(
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
     }
 
-@router.post("/validate-password")
-async def validate_password_endpoint(password: str):
-    validation = validate_password_strength(password)
-    recommendations = get_password_recommendations(password)
-    score = calculate_password_score(password)
-    
-    return {
-        "password": password,
-        "validation": validation,
-        "is_strong": validation["strong"],
-        "score": score,
-        "recommendations": recommendations
-    }
 
 @router.post("/change-password")
 async def change_password(
@@ -374,29 +361,3 @@ async def change_password_public(
     
     return {"message": "Password changed successfully"}
 
-@router.get("/machines/list")
-def list_machines(session: Session = Depends(get_session)):
-    """List all machines in the database for debugging"""
-    machines = session.exec(select(MachineModel)).all()
-    return {
-        "machines": [
-            {
-                "serial_number": m.serial_number,
-                "owned": m.owned
-            } for m in machines
-        ]
-    }
-
-@router.post("/admin/create")
-def create_admin_account(session: Session = Depends(get_session)):
-    hashed_password = get_password_hash("admin123") # type: ignore
-    admin = User(
-        email="admin2@gmail.com",
-        full_name="Admin",
-        role=UserRole.ADMIN,
-        password_hash=hashed_password,  
-    )
-    session.add(admin)
-    session.commit()
-    session.refresh(admin)
-    return admin

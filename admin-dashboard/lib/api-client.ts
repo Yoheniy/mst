@@ -131,10 +131,14 @@ class ApiClient {
       ...(options.headers as any),
     }
 
+    // Implement robust timeout using AbortController to avoid environment-specific AbortSignal issues
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout)
+
     const config: RequestInit = {
       ...options,
       headers: mergedHeaders,
-      signal: AbortSignal.timeout(this.timeout),
+      signal: controller.signal,
     }
 
     try {
@@ -192,6 +196,8 @@ class ApiClient {
         status: 0,
         error: 'Unknown error occurred',
       }
+    } finally {
+      clearTimeout(timeoutId)
     }
   }
 
@@ -376,6 +382,11 @@ class ApiClient {
   // Analytics methods
   async getAnalytics(): Promise<ApiResponse<any>> {
     return this.request(API_CONFIG.ENDPOINTS.ANALYTICS)
+  }
+
+  // Dashboard statistics
+  async getStatistics(): Promise<ApiResponse<any>> {
+    return this.request(API_CONFIG.ENDPOINTS.DASHBOARD.STATISTICS)
   }
 
   // Serial number (MachineModel) methods

@@ -33,51 +33,38 @@ export function useDashboardData() {
         setIsLoading(true)
         setError(null)
 
-        // Fetch all data in parallel
-        const [
-          usersResponse,
-          machinesResponse,
-          knowledgeResponse,
-          errorCodesResponse
-        ] = await Promise.all([
-          apiClient.getUsers(),
-          apiClient.getMachines(),
-          apiClient.getKnowledgeBase(),
-          apiClient.getErrorCodes()
-        ])
+        // Fetch aggregated statistics in a single request
+        const statisticsResponse = await apiClient.getStatistics()
 
-        // Check for errors
-        if (usersResponse.error) {
-          throw new Error(`Failed to fetch users: ${usersResponse.error}`)
-        }
-        if (machinesResponse.error) {
-          throw new Error(`Failed to fetch machines: ${machinesResponse.error}`)
-        }
-        if (knowledgeResponse.error) {
-          throw new Error(`Failed to fetch knowledge base: ${knowledgeResponse.error}`)
-        }
-        if (errorCodesResponse.error) {
-          throw new Error(`Failed to fetch error codes: ${errorCodesResponse.error}`)
+        if (statisticsResponse.error) {
+          throw new Error(`Failed to fetch statistics: ${statisticsResponse.error}`)
         }
 
-        // Calculate stats
+        const totals = statisticsResponse.data || {}
+
+        const totalUsersCount = Array.isArray(totals.total_users) ? totals.total_users.length : (totals.total_users ?? 0)
+        const totalMachinesCount = Array.isArray(totals.total_machines) ? totals.total_machines.length : (totals.total_machines ?? 0)
+        const totalKbCount = Array.isArray(totals.total_knowledge_base_content) ? totals.total_knowledge_base_content.length : (totals.total_knowledge_base_content ?? 0)
+        const totalTicketsCount = Array.isArray(totals.total_tickets) ? totals.total_tickets.length : (totals.total_tickets ?? 0)
+        const totalErrorCodesCount = Array.isArray(totals.total_error_codes) ? totals.total_error_codes.length : (totals.total_error_codes ?? 0)
+
         const stats: DashboardStats = {
-          totalUsers: usersResponse.data?.length || 0,
-          activeMachines: machinesResponse.data?.length || 0,
-          knowledgeArticles: knowledgeResponse.data?.length || 0,
-          openTickets: 0, // TODO: Implement tickets API
-          errorCodes: errorCodesResponse.data?.length || 0,
-          usersChange: calculateChange(usersResponse.data || []),
-          machinesChange: calculateChange(machinesResponse.data || []),
-          articlesChange: calculateChange(knowledgeResponse.data || []),
-          ticketsChange: 0, // TODO: Implement tickets API
+          totalUsers: totalUsersCount,
+          activeMachines: totalMachinesCount,
+          knowledgeArticles: totalKbCount,
+          openTickets: totalTicketsCount,
+          errorCodes: totalErrorCodesCount,
+          usersChange: calculateChange(new Array(totalUsersCount).fill(0)),
+          machinesChange: calculateChange(new Array(totalMachinesCount).fill(0)),
+          articlesChange: calculateChange(new Array(totalKbCount).fill(0)),
+          ticketsChange: calculateChange(new Array(totalTicketsCount).fill(0)),
         }
 
         setData({
-          users: usersResponse.data || [],
-          machines: machinesResponse.data || [],
-          knowledgeBase: knowledgeResponse.data || [],
-          errorCodes: errorCodesResponse.data || [],
+          users: [],
+          machines: [],
+          knowledgeBase: [],
+          errorCodes: [],
           stats
         })
 

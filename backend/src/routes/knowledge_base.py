@@ -7,6 +7,7 @@ from ..services.document_service import document_service
 from .utils.database import get_session
 from ..model.models import (
     KnowledgeBaseContent,
+    Document,
     KnowledgeBaseContentCreate, KnowledgeBaseContentRead,
     ContentType
 )
@@ -37,7 +38,7 @@ async def create_knowledge_base_content(
         kb_create = KnowledgeBaseContentCreate(**data)
 
         # Validate content type vs. file/text requirements
-        if kb_create.content_type in [ContentType.document, ContentType.video] and not file:
+        if kb_create.content_type in [ContentType.document,ContentType.image, ContentType.video] and not file:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File is required for content type: {kb_create.content_type}"
@@ -68,13 +69,27 @@ async def create_knowledge_base_content(
             elif kb_create.content_type == ContentType.document:
                 # For documents, process the file content first to extract text
                 result = await document_service.process_upload_file(file_content, file_name)
+                document = Document(
+                    title=file_name,
+                    content=result["content"],
+                    document_type=kb_create.content_type,
+                    machine_type=kb_create.applies_to_models
+                ) 
+                session.add(document)
                 # Store the extracted text content in the knowledge base content
-                kb_create.content_text = result["content"]
                 upload_result = await cloudinary_service.upload_document(file_content, file_name)
             else:
                 upload_result = await cloudinary_service.upload_image(file_content, file_name)
 
             external_url = upload_result["url"]
+        else:
+            document = Document(
+                title=kb_create.title,
+                content=kb_create.content_text,
+                document_type=kb_create.content_type,
+                machine_type=kb_create.applies_to_models
+            )
+            session.add(document)
 
         # Create DB record
         db_content = KnowledgeBaseContent(
@@ -88,7 +103,6 @@ async def create_knowledge_base_content(
         session.add(db_content)
         session.commit()
         session.refresh(db_content)
-
         return db_content
 
     except json.JSONDecodeError:
@@ -143,12 +157,13 @@ async def get_knowledge_base_content(
         
         if machine_model:
             query = query.where(KnowledgeBaseContent.applies_to_models.contains([machine_model]))
-        
+
         if error_code_id:
             query = query.where(KnowledgeBaseContent.related_error_code_id == error_code_id)
         
         # Apply pagination
         query = query.offset(skip).limit(limit)
+        
         
         # Execute query
         content_list = session.exec(query).all()
@@ -251,7 +266,6 @@ async def update_knowledge_base_content(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid JSON format for applies_to_models"
                 )
-        
         # Handle file replacement if provided
         if file:
             # Delete old file from Cloudinary if it exists
@@ -369,88 +383,6 @@ async def delete_knowledge_base_content(
             detail=f"Failed to delete knowledge base content: {str(e)}"
         )
 
-# Upload File Only (for existing content)
-@router.post("/{kb_id}/upload-file", response_model=KnowledgeBaseContentRead)
-async def upload_file_for_content(
-    kb_id: int,
-    file: UploadFile = File(...),
-    session: Session = Depends(get_session),
-    current_user: dict = Depends(get_current_user)
-):
-   
-    try:
-        # Get existing content
-        db_content = session.get(KnowledgeBaseContent, kb_id)
-        
-        if not db_content:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Knowledge base content with ID {kb_id} not found"
-            )
-        
-        # Extract user id and role, compatible with object or dict
-        try:
-            current_user_id = current_user.user_id  # type: ignore[attr-defined]
-        except Exception:
-            current_user_id = current_user.get("user_id")  # type: ignore[assignment]
-        try:
-            current_user_role = current_user.role  # type: ignore[attr-defined]
-        except Exception:
-            current_user_role = current_user.get("role")  # type: ignore[assignment]
-
-        # Check if user is the uploader or has admin privileges
-        if (db_content.uploader_id != current_user_id and 
-            current_user_role != "admin"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only the uploader or admin can upload files for this content"
-            )
-        
-        # Delete old file if it exists
-        if db_content.external_url:
-            try:
-                old_file_info = await cloudinary_service.get_file_info(db_content.external_url)
-                if old_file_info:
-                    await cloudinary_service.delete_file(old_file_info["public_id"])
-            except Exception as e:
-                print(f"Warning: Failed to delete old file: {str(e)}")
-
-        # Upload new file
-        file_content = await file.read()
-        file_name = file.filename
-
-        # Check if file is empty
-        if not file_content:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot process empty file"
-            )
-        
-        if db_content.content_type == ContentType.video:
-            upload_result = await cloudinary_service.upload_video(file_content, file_name)
-        elif db_content.content_type == ContentType.document:
-            upload_result = await cloudinary_service.upload_document(file_content, file_name)
-        else:
-            upload_result = await cloudinary_service.upload_image(file_content, file_name)
-        
-        # Update content with new file URL
-        db_content.external_url = upload_result["url"]
-        db_content.updated_at = datetime.utcnow()
-        
-        session.add(db_content)
-        session.commit()
-        session.refresh(db_content)
-        
-        return db_content
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to upload file: {str(e)}"
-        )
 
 # Get Content by Content Type
 @router.get("/type/{content_type}", response_model=List[KnowledgeBaseContentRead])

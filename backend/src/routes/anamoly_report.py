@@ -45,14 +45,10 @@ async def create_anomaly_report(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Create an anomaly report. Optionally upload a file to Cloudinary and store its URL in media_urls.
-    Only users with role admin or technician can create.
-    """
     _ensure_admin_or_technician(current_user)
 
     import json
     
-
     # Ensure machine exists
     machine = session.get(Machine, machine_id)
     if not machine:
@@ -74,16 +70,7 @@ async def create_anomaly_report(
         if upload_result.get("url"):
             media_urls.append(upload_result["url"])
     
-    # report_create = AnomalyReportCreate(
-    #     machine_id=machine_id,
-    #     reporter_id=current_user.user_id,
-    #     media_urls=media_urls,
-    #     report_text=report_text,
-    #     audio_transcript=audio_transcript,
-    #     status=r_status,
-    #     priority=priority,
-    #     observed_at=observed_at
-    # )
+   
     db_report = AnomalyReport(
         reporter_id=current_user.user_id,
         machine_id=machine_id,
