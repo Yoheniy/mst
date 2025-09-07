@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { X, BookOpen, FileText, Video, Tag, ExternalLink } from "lucide-react"
+import { X, BookOpen, FileText, Video, Tag, ExternalLink, Image } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { KnowledgeBaseContent } from "@/lib/api-client"
 
@@ -39,20 +39,31 @@ export function AddKnowledgeForm({ onClose, onSuccess }: AddKnowledgeFormProps) 
       const tags = formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
       const applies_to_models = formData.applies_to_models ? formData.applies_to_models.split(',').map(model => model.trim()).filter(model => model) : []
 
+      // Debug logging
+      console.log("Submitting form data:", {
+        title: formData.title,
+        content_type: formData.content_type,
+        hasFile: !!file,
+        fileName: file?.name,
+        fileSize: file?.size,
+        fileType: file?.type
+      })
+
       const response = await apiClient.createKnowledgeBaseItem({
         ...formData,
         tags,
         applies_to_models,
         file
       })
-      
+
       if (response.error) {
         throw new Error(response.error)
       }
-      
+
       onSuccess()
       onClose()
     } catch (err) {
+      console.error("Form submission error:", err)
       setError(err instanceof Error ? err.message : "Failed to create knowledge base item")
     } finally {
       setIsLoading(false)
@@ -69,8 +80,14 @@ export function AddKnowledgeForm({ onClose, onSuccess }: AddKnowledgeFormProps) 
         return <BookOpen className="h-4 w-4" />
       case "faq":
         return <BookOpen className="h-4 w-4" />
+      case "document":
+        return <FileText className="h-4 w-4" />
       case "video":
         return <Video className="h-4 w-4" />
+      case "image":
+        return <Image className="h-4 w-4" />
+      case "guide":
+        return <BookOpen className="h-4 w-4" />
       default:
         return <FileText className="h-4 w-4" />
     }
@@ -135,6 +152,8 @@ export function AddKnowledgeForm({ onClose, onSuccess }: AddKnowledgeFormProps) 
                   <option value="troubleshooting">Troubleshooting</option>
                   <option value="faq">FAQ</option>
                   <option value="video">Video</option>
+                  <option value="document">Document</option>
+                  <option value="image">Image</option>
                   <option value="guide">Guide</option>
                 </select>
               </div>
@@ -215,9 +234,23 @@ export function AddKnowledgeForm({ onClose, onSuccess }: AddKnowledgeFormProps) 
               <input
                 id="file"
                 type="file"
-                onChange={(e) => setFile(e.target.files?.[0])}
+                onChange={(e) => {
+                  const selectedFile = e.target.files?.[0]
+                  console.log("File selected:", {
+                    name: selectedFile?.name,
+                    size: selectedFile?.size,
+                    type: selectedFile?.type,
+                    lastModified: selectedFile?.lastModified
+                  })
+                  setFile(selectedFile)
+                }}
                 className="block w-full text-sm text-slate-700 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-100 dark:file:bg-slate-700 file:text-slate-700 dark:file:text-slate-200 hover:file:bg-slate-200 dark:hover:file:bg-slate-600"
               />
+              {file && (
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  Selected: {file.name} ({Math.round(file.size / 1024)} KB)
+                </p>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3 pt-6">

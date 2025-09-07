@@ -11,7 +11,7 @@ class MachineModel(SQLModel,table=True):
     type:str = Field(
         sa_column=Column(String, nullable=True)
     )
-    brand: str = Field(sa_column=Column(String(100), nullable=False))
+    brand: str = Field(sa_column=Column(String(100), nullable=True))
 
     owned:bool = Field(
         sa_column=Column(Boolean, nullable=True,default=False)

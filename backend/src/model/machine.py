@@ -10,7 +10,7 @@ class Machine(SQLModel, table=True):
     machine_id: Optional[int] = Field(default=None, primary_key=True)
     serial_number: str = Field(sa_column=Column(String(100), nullable=False, unique=True, index=True))
     model: str = Field(sa_column=Column(String(100), nullable=False))
-    brand: str = Field(sa_column=Column(String(100), nullable=False))
+    brand: str = Field(sa_column=Column(String(100), nullable=True))
     type: str = Field(sa_column=Column(String(100), nullable=False))
     purchase_date: Optional[date] = Field(sa_column=Column(Date, nullable=True))
     warranty_end_date: Optional[date] = Field(sa_column=Column(Date, nullable=True))

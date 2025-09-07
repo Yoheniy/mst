@@ -1,6 +1,6 @@
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: 'https://machine-tool-support-app.onrender.com',
+  BASE_URL: ' http://localhost:8000',
   TIMEOUT: parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000'),
   ENDPOINTS: {
     AUTH: {

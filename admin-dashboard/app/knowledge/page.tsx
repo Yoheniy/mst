@@ -52,6 +52,10 @@ export default function KnowledgeBasePage() {
         return "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400"
       case "video":
         return "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400"
+      case "document":
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+      case "image":
+        return "bg-pink-100 text-pink-800 dark:bg-pink-900/20 dark:text-pink-400"
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400"
     }
@@ -69,6 +73,10 @@ export default function KnowledgeBasePage() {
         return <BookOpen className="h-4 w-4" />
       case "video":
         return <Video className="h-4 w-4" />
+      case "document":
+        return <FileText className="h-4 w-4" />
+      case "image":
+        return <Image className="h-4 w-4" />
       default:
         return <FileText className="h-4 w-4" />
     }
@@ -139,7 +147,7 @@ export default function KnowledgeBasePage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
             <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-slate-200/50 dark:border-slate-700/50">
               <CardContent className="p-6">
                 <div className="flex items-center space-x-4">
@@ -193,17 +201,49 @@ export default function KnowledgeBasePage() {
                 <div className="flex items-center space-x-4">
                   <div className="p-3 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
                     <Video className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-              </div>
+                  </div>
                   <div>
                     <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                       {knowledgeBase.filter(k => k.content_type === 'video').length}
                     </p>
                     <p className="text-sm text-slate-600 dark:text-slate-400">Videos</p>
-              </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-slate-200/50 dark:border-slate-700/50">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
+                    <FileText className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                      {knowledgeBase.filter(k => k.content_type === 'document').length}
+                    </p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Documents</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-slate-200/50 dark:border-slate-700/50">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-pink-100 dark:bg-pink-900/50 rounded-lg">
+                    <Image className="h-6 w-6 text-pink-600 dark:text-pink-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                      {knowledgeBase.filter(k => k.content_type === 'image').length}
+                    </p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Images</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
         {/* Filters and Search */}
           <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-slate-200/50 dark:border-slate-700/50">

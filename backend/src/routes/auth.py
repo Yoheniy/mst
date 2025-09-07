@@ -391,8 +391,8 @@ def list_machines(session: Session = Depends(get_session)):
 def create_admin_account(session: Session = Depends(get_session)):
     hashed_password = get_password_hash("admin123") # type: ignore
     admin = User(
-        email="kiyabest38@gmail.com",
-        full_name="Admin Test",
+        email="admin2@gmail.com",
+        full_name="Admin",
         role=UserRole.ADMIN,
         password_hash=hashed_password,  
     )

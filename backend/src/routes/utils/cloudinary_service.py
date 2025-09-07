@@ -53,6 +53,13 @@ class CloudinaryService:
             )
         
         try:
+            # Check if file is empty
+            if not file_data:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot upload empty file"
+                )
+
             # Validate file size
             file_size_mb = len(file_data) / (1024 * 1024)
             if file_size_mb > max_size_mb:

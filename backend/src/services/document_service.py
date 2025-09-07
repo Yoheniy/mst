@@ -131,16 +131,23 @@ class DocumentService:
         
         return text.strip()
     
-    async def process_upload_file(self, file: UploadFile) -> Dict[str, Any]:
-        """Process an uploaded file and extract text with enhanced metadata."""
+    async def process_upload_file(self, file_content: bytes, file_name: str) -> Dict[str, Any]:
+        """Process uploaded file content and extract text with enhanced metadata."""
         try:
-            # Read file content
-            content = await file.read()
+            # Use the provided file content directly
+            content = file_content
+
+            # Check if file is empty
+            if not content:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot process empty file"
+                )
             
             # Check file type
-            if file.filename.lower().endswith('.pdf'):
+            if file_name.lower().endswith('.pdf'):
                 text = await self.extract_text_from_pdf(content)
-            elif file.filename.lower().endswith(('.txt', '.md')):
+            elif file_name.lower().endswith(('.txt', '.md')):
                 # For text files, try to decode as text
                 try:
                     text = content.decode('utf-8')
@@ -151,12 +158,12 @@ class DocumentService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Unsupported file type. Supported formats: {', '.join(self.supported_formats)}"
                 )
-            
+
             # Extract enhanced metadata
-            metadata = self._extract_metadata(text, file.filename)
+            metadata = self._extract_metadata(text, file_name)
             
             return {
-                "filename": file.filename,
+                "filename": file_name,
                 "content": text,
                 "size": len(content),
                 "text_length": len(text),

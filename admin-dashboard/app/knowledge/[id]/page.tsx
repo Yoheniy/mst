@@ -11,7 +11,7 @@ import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
 import { apiClient, KnowledgeBaseContent } from "@/lib/api-client"
 import { API_CONFIG, buildApiUrl } from "@/lib/config"
-import { Calendar, ArrowLeft, ExternalLink, FileText, Video, Tag } from "lucide-react"
+import { Calendar, ArrowLeft, ExternalLink, FileText, Video, Tag, Image } from "lucide-react"
 
 export default function KnowledgeDetailPage() {
   const params = useParams<{ id: string }>()
@@ -55,6 +55,8 @@ export default function KnowledgeDetailPage() {
     switch (type.toLowerCase()) {
       case "video":
         return <Video className="h-4 w-4" />
+      case "image":
+        return <Image className="h-4 w-4" />
       default:
         return <FileText className="h-4 w-4" />
     }
@@ -251,9 +253,12 @@ export default function KnowledgeDetailPage() {
                 />
               )}
 
-              {/* Video or external resource */}
+              {/* Video, Image or external resource */}
               {(() => {
-                const isVideo = (item.content_type || "").toLowerCase() === "video"
+                const contentType = (item.content_type || "").toLowerCase()
+                const isVideo = contentType === "video"
+                const isImage = contentType === "image"
+
                 if (isVideo) {
                   return item.external_url ? (
                     <div className="w-full">
@@ -272,6 +277,25 @@ export default function KnowledgeDetailPage() {
                     </div>
                   )
                 }
+
+                if (isImage) {
+                  return item.external_url ? (
+                    <div className="w-full">
+                      <div className="relative w-full max-w-2xl md:max-w-4xl mx-auto">
+                        <img
+                          className="w-full h-auto rounded-lg border border-slate-200 dark:border-slate-700"
+                          src={item.external_url}
+                          alt={item.title}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-slate-600 dark:text-slate-400">
+                      Image not available.
+                    </div>
+                  )
+                }
+
                 return item.external_url ? (
                   <div>
                     <Button asChild variant="secondary">

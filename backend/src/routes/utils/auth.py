@@ -80,10 +80,12 @@ async def get_current_user(
 
 # --- Dependencies for Role-Based Access Control (RBAC) ---
 async def get_current_active_admin(current_user: User = Depends(get_current_user)) -> User:
+    # Debug: Print the actual role values for troubleshooting
+
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions (admin role required)"
+            detail=f"Not enough permissions (admin role required). Your role: '{current_user.role}', Expected: '{UserRole.ADMIN.value}'"
         )
     return current_user
 

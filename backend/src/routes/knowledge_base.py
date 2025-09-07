@@ -6,8 +6,7 @@ import json
 from ..services.document_service import document_service
 from .utils.database import get_session
 from ..model.models import (
-    KnowledgeBaseContent, 
-    Document,
+    KnowledgeBaseContent,
     KnowledgeBaseContentCreate, KnowledgeBaseContentRead,
     ContentType
 )
@@ -38,12 +37,12 @@ async def create_knowledge_base_content(
         kb_create = KnowledgeBaseContentCreate(**data)
 
         # Validate content type vs. file/text requirements
-        if kb_create.content_type in [ContentType.DOCUMENT, ContentType.VIDEO] and not file:
+        if kb_create.content_type in [ContentType.document, ContentType.video] and not file:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File is required for content type: {kb_create.content_type}"
             )
-        if kb_create.content_type == ContentType.FAQ and not kb_create.content_text:
+        if kb_create.content_type == ContentType.faq and not kb_create.content_text:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Content text is required for FAQ content type"
@@ -54,17 +53,23 @@ async def create_knowledge_base_content(
             file_content = await file.read()
             file_name = file.filename
 
-            if kb_create.content_type == ContentType.VIDEO:
-                upload_result = await cloudinary_service.upload_video(file_content, file_name)
-            elif kb_create.content_type == ContentType.DOCUMENT:
-                result = await document_service.process_upload_file(file)
-                document_content = Document(
-                    title=result["filename"],
-                    content=result["content"],
-                    document_type=kb_create.content_type,
-                    machine_type=kb_create.machine_type,
-                    file_path=result["file_path"]
+            # Debug logging
+            print(f"File received: name={file_name}, size={len(file_content)}, type={type(file_content)}")
+
+            # Check if file is empty
+            if not file_content:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot process empty file"
                 )
+
+            if kb_create.content_type == ContentType.video:
+                upload_result = await cloudinary_service.upload_video(file_content, file_name)
+            elif kb_create.content_type == ContentType.document:
+                # For documents, process the file content first to extract text
+                result = await document_service.process_upload_file(file_content, file_name)
+                # Store the extracted text content in the knowledge base content
+                kb_create.content_text = result["content"]
                 upload_result = await cloudinary_service.upload_document(file_content, file_name)
             else:
                 upload_result = await cloudinary_service.upload_image(file_content, file_name)
@@ -255,14 +260,21 @@ async def update_knowledge_base_content(
                 old_file_info = await cloudinary_service.get_file_info(db_content.external_url)
                 if old_file_info:
                     await cloudinary_service.delete_file(old_file_info["public_id"])
-            
+
             # Upload new file
             file_content = await file.read()
             file_name = file.filename
+
+            # Check if file is empty
+            if not file_content:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot process empty file"
+                )
             
-            if db_content.content_type == ContentType.VIDEO:
+            if db_content.content_type == ContentType.video:
                 upload_result = await cloudinary_service.upload_video(file_content, file_name)
-            elif db_content.content_type == ContentType.DOCUMENT:
+            elif db_content.content_type == ContentType.document:
                 upload_result = await cloudinary_service.upload_document(file_content, file_name)
             else:
                 upload_result = await cloudinary_service.upload_image(file_content, file_name)
@@ -402,14 +414,21 @@ async def upload_file_for_content(
                     await cloudinary_service.delete_file(old_file_info["public_id"])
             except Exception as e:
                 print(f"Warning: Failed to delete old file: {str(e)}")
-        
+
         # Upload new file
         file_content = await file.read()
         file_name = file.filename
+
+        # Check if file is empty
+        if not file_content:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot process empty file"
+            )
         
-        if db_content.content_type == ContentType.VIDEO:
+        if db_content.content_type == ContentType.video:
             upload_result = await cloudinary_service.upload_video(file_content, file_name)
-        elif db_content.content_type == ContentType.DOCUMENT:
+        elif db_content.content_type == ContentType.document:
             upload_result = await cloudinary_service.upload_document(file_content, file_name)
         else:
             upload_result = await cloudinary_service.upload_image(file_content, file_name)
