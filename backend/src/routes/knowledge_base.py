@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+# mst/backend/src/routes/knowledge_base.py (updated)
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from sqlmodel import Session, select
 from typing import List, Optional
 from datetime import datetime
 import json
-from ..services.document_service import document_service
+
+from ..rag.services.document_service import document_service
+from ..services.automation_service import automation_service
 from .utils.database import get_session
 from ..model.models import (
     KnowledgeBaseContent,
@@ -14,12 +17,11 @@ from ..model.models import (
 from .utils.auth import get_current_active_admin, get_current_user
 from .utils.cloudinary_service import cloudinary_service
 
-router = APIRouter(prefix="/knowledge-base",
- tags=["Knowledge Base"])
+router = APIRouter(prefix="/knowledge-base", tags=["Knowledge Base"])
 
-# Create Knowledge Base Content with File Upload
 @router.post("/", response_model=KnowledgeBaseContentRead, status_code=status.HTTP_201_CREATED)
 async def create_knowledge_base_content(
+    background_tasks: BackgroundTasks,
     content: str = Form(...),  # JSON string for KnowledgeBaseContentCreate
     file: Optional[UploadFile] = File(None),
     session: Session = Depends(get_session),
@@ -36,9 +38,8 @@ async def create_knowledge_base_content(
             user_id_val = current_user.get("user_id")  # type: ignore
         data.setdefault("uploader_id", user_id_val)
         kb_create = KnowledgeBaseContentCreate(**data)
-
         # Validate content type vs. file/text requirements
-        if kb_create.content_type in [ContentType.document,ContentType.image, ContentType.video] and not file:
+        if kb_create.content_type in [ContentType.document, ContentType.image, ContentType.video] and not file:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File is required for content type: {kb_create.content_type}"
@@ -50,25 +51,28 @@ async def create_knowledge_base_content(
             )
 
         external_url = None
+        file_content_bytes = None
+        file_name = None
+        
         if file:
-            file_content = await file.read()
+            file_content_bytes = await file.read()
             file_name = file.filename
 
             # Debug logging
-            print(f"File received: name={file_name}, size={len(file_content)}, type={type(file_content)}")
+            print(f"File received: name={file_name}, size={len(file_content_bytes)}, type={type(file_content_bytes)}")
 
             # Check if file is empty
-            if not file_content:
+            if not file_content_bytes:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Cannot process empty file"
                 )
 
             if kb_create.content_type == ContentType.video:
-                upload_result = await cloudinary_service.upload_video(file_content, file_name)
+                upload_result = await cloudinary_service.upload_video(file_content_bytes, file_name)
             elif kb_create.content_type == ContentType.document:
                 # For documents, process the file content first to extract text
-                result = await document_service.process_upload_file(file_content, file_name)
+                result = await document_service.process_upload_file(file_content_bytes, file_name)
                 document = Document(
                     title=file_name,
                     content=result["content"],
@@ -77,9 +81,21 @@ async def create_knowledge_base_content(
                 ) 
                 session.add(document)
                 # Store the extracted text content in the knowledge base content
-                upload_result = await cloudinary_service.upload_document(file_content, file_name)
+                upload_result = await cloudinary_service.upload_document(file_content_bytes, file_name)
+                
+                # Trigger RAG processing for document files
+                if kb_create.content_type == ContentType.document:
+                    metadata = {
+                        "title": kb_create.title,
+                        "content_type": kb_create.content_type,
+                        "applies_to_models": kb_create.applies_to_models,
+                        "uploader_id": user_id_val
+                    }
+                    await automation_service.process_uploaded_file(
+                        file_content_bytes, file_name, metadata, background_tasks
+                    )
             else:
-                upload_result = await cloudinary_service.upload_image(file_content, file_name)
+                upload_result = await cloudinary_service.upload_image(file_content_bytes, file_name)
 
             external_url = upload_result["url"]
         else:
@@ -90,6 +106,20 @@ async def create_knowledge_base_content(
                 machine_type=kb_create.applies_to_models
             )
             session.add(document)
+            
+            # For text content, process directly for RAG
+            if kb_create.content_text:
+                metadata = {
+                    "title": kb_create.title,
+                    "content_type": kb_create.content_type,
+                    "applies_to_models": kb_create.applies_to_models,
+                    "uploader_id": user_id_val
+                }
+                # Convert text to bytes for processing
+                text_bytes = kb_create.content_text.encode('utf-8')
+                await automation_service.process_uploaded_file(
+                    text_bytes, f"{kb_create.title}.txt", metadata, background_tasks
+                )
 
         # Create DB record
         db_content = KnowledgeBaseContent(
@@ -103,6 +133,15 @@ async def create_knowledge_base_content(
         session.add(db_content)
         session.commit()
         session.refresh(db_content)
+        
+        # Store content ID for RAG processing
+        if file_content_bytes and kb_create.content_type == ContentType.document:
+            metadata["kb_id"] = db_content.kb_id
+            # Reprocess with the content ID
+            await automation_service.process_uploaded_file(
+                file_content_bytes, file_name, metadata, background_tasks
+            )
+        
         return db_content
 
     except json.JSONDecodeError:

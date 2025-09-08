@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, JSON
 from sqlmodel import Field, SQLModel, Relationship
@@ -101,5 +101,5 @@ class AIChatResponse(SQLModel):
     session_id: int
     message_id: int
     confidence: float
-    usage: Dict[str, int]
+    usage: Dict[str, Union[int, float]]
     model: str

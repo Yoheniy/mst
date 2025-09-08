@@ -10,7 +10,7 @@ from ..model.models import (
     AIChatRequest, AIChatResponse,
     AdvancedChatRequest, MessageRole
 )
-from ..services.rag_service import rag_service
+from ..rag.services.rag_service import rag_service
 from ..routes.utils.database import get_session
 from ..routes.utils.auth import get_current_user
 from ..model.models import User
@@ -179,7 +179,7 @@ async def chat_with_ai(
         ai_messages = []
         for msg in reversed(history_messages):  # Reverse to get chronological order
             ai_messages.append({
-                "role": msg.role.value,
+                "role": msg.role,
                 "content": msg.content
             })
         

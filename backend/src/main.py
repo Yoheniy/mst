@@ -17,6 +17,8 @@ from .routes.chat import router as chat_router
 from .routes.utils.database import get_session
 from .model.models import Machine, User, Ticket, AnomalyReport, KnowledgeBaseContent, ErrorCode
 
+from .rag.routes.rag_documents import router as rag_router
+
 # The lifespan context manager is typically used for startup/shutdown events.
 # With Alembic, we do NOT call create_db_and_tables() here.
 # Alembic manages the schema, so this block might be simpler or include other init tasks.
@@ -55,6 +57,7 @@ app.include_router(chat_router)
 # Anomaly reports
 app.include_router(anomaly_router)
 # app.include_router(chat_router)
+app.include_router(rag_router)
 
 # Example root endpoint
 @app.get("/")

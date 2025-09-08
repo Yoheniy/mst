@@ -3,7 +3,10 @@ import logging
 from typing import List, Dict, Any, Optional
 from pinecone import Pinecone, ServerlessSpec
 from fastapi import HTTPException, status
+from dotenv import load_dotenv
 
+
+load_dotenv('/home/jovanijo/Desktop/mst/backend/.env')
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

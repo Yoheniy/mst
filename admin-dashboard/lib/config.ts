@@ -1,7 +1,7 @@
 // API Configuration
 export const API_CONFIG = {
   BASE_URL: 'http://localhost:8000',
-  TIMEOUT: parseInt('30000'),
+  TIMEOUT: parseInt('60000'),
   ENDPOINTS: {
     DASHBOARD: {
       STATISTICS: '/statistics'
