@@ -2,6 +2,7 @@
 from typing import Dict, Optional
 import re
 import time
+from fastapi import UploadFile
 
 import random
 # ============================================================================
@@ -196,3 +197,24 @@ def generate_8_digit_password() -> str:
 
 def generate_4_digit_code() -> str:
     return ''.join(str(random.randint(0, 9)) for _ in range(4))
+
+
+
+def get_file_type(file: UploadFile) -> str:
+    file_name = file.filename.lower() if file.filename else ""
+
+    # Image formats
+    if file_name.endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp")):
+        return "image"
+
+    # Video formats
+    elif file_name.endswith((".mp4", ".avi", ".mov", ".mkv", ".flv", ".wmv", ".webm")):
+        return "video"
+
+    # Document formats
+    elif file_name.endswith((".pdf", ".doc", ".docx", ".txt", ".ppt", ".pptx", ".xls", ".xlsx")):
+        return "document"
+
+    # Default
+    else:
+        return "other"

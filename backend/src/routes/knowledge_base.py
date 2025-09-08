@@ -14,6 +14,7 @@ from ..model.models import (
     KnowledgeBaseContentCreate, KnowledgeBaseContentRead,
     ContentType
 )
+from .utils.helpers import get_file_type
 from .utils.auth import get_current_active_admin, get_current_user
 from .utils.cloudinary_service import cloudinary_service
 
@@ -55,11 +56,10 @@ async def create_knowledge_base_content(
         file_name = None
         
         if file:
+
+            file_type = get_file_type(file)
             file_content_bytes = await file.read()
             file_name = file.filename
-
-            # Debug logging
-            print(f"File received: name={file_name}, size={len(file_content_bytes)}, type={type(file_content_bytes)}")
 
             # Check if file is empty
             if not file_content_bytes:
@@ -68,9 +68,9 @@ async def create_knowledge_base_content(
                     detail="Cannot process empty file"
                 )
 
-            if kb_create.content_type == ContentType.video:
+            if file_type == "video":
                 upload_result = await cloudinary_service.upload_video(file_content_bytes, file_name)
-            elif kb_create.content_type == ContentType.document:
+            elif file_type == "document":
                 # For documents, process the file content first to extract text
                 result = await document_service.process_upload_file(file_content_bytes, file_name)
                 document = Document(
@@ -94,8 +94,13 @@ async def create_knowledge_base_content(
                     await automation_service.process_uploaded_file(
                         file_content_bytes, file_name, metadata, background_tasks
                     )
-            else:
+            elif file_type=="image":
                 upload_result = await cloudinary_service.upload_image(file_content_bytes, file_name)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Unknown file type"
+                ) 
 
             external_url = upload_result["url"]
         else:

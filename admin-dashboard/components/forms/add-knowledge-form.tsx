@@ -76,7 +76,7 @@ export function AddKnowledgeForm({ onClose, onSuccess }: AddKnowledgeFormProps) 
         return <FileText className="h-4 w-4" />
       case "tutorial":
         return <BookOpen className="h-4 w-4" />
-      case "troubleshooting":
+      case "troubleshooting_guide":
         return <BookOpen className="h-4 w-4" />
       case "faq":
         return <BookOpen className="h-4 w-4" />
@@ -149,7 +149,7 @@ export function AddKnowledgeForm({ onClose, onSuccess }: AddKnowledgeFormProps) 
                   <option value="">Select content type</option>
                   <option value="manual">Manual</option>
                   <option value="tutorial">Tutorial</option>
-                  <option value="troubleshooting">Troubleshooting</option>
+                  <option value="troubleshooting_guide">Troubleshooting</option>
                   <option value="faq">FAQ</option>
                   <option value="video">Video</option>
                   <option value="document">Document</option>
